@@ -12,6 +12,7 @@ const {
   commonBeforeEach,
   commonAfterEach,
   commonAfterAll,
+  jobIds,
 } = require("./_testCommon");
 
 beforeAll(commonBeforeAll);
@@ -132,7 +133,7 @@ describe("findAll", function () {
 /************************************** get */
 
 describe("get", function () {
-  test("works", async function () {
+  test("works if no jobs", async function () {
     let user = await User.get("u1");
     expect(user).toEqual({
       username: "u1",
@@ -140,8 +141,22 @@ describe("get", function () {
       lastName: "U1L",
       email: "u1@email.com",
       isAdmin: false,
+      jobs: [expect.any(Number), expect.any(Number)]
     });
   });
+
+  test("works if jobs are applied for", async function () {
+    let user = await User.get("u2");
+    expect(user).toEqual({
+      username: "u2",
+      firstName: "U2F",
+      lastName: "U2L",
+      email: "u2@email.com",
+      isAdmin: false,
+      jobs: "No jobs applied for by user"
+    });
+  });
+
 
   test("not found if no such user", async function () {
     try {
@@ -223,6 +238,33 @@ describe("remove", function () {
     try {
       await User.remove("nope");
       fail();
+    } catch (err) {
+      expect(err instanceof NotFoundError).toBeTruthy();
+    }
+  });
+});
+
+/*********************apply for job */
+describe("apply for job", function () {
+  test("works", async function () {
+    await User.applyForJob("u1", jobIds[2]);
+    const res = await db.query(
+        `SELECT * FROM applications WHERE job_id=$1`, [jobIds[2]]);
+    console.log(res.rows[0])
+    expect(res.rows).toEqual( [{ username: 'u1', job_id: expect.any(Number) }]);
+  });
+
+  test("no application if no such user", async function () {
+    try {
+      await User.applyForJob("u7", jobIds[1]);
+    } catch (err) {
+      expect(err instanceof NotFoundError).toBeTruthy();
+    }
+  });
+
+  test("no application if no such job", async function () {
+    try {
+      await User.applyForJob("u1", 0);
     } catch (err) {
       expect(err instanceof NotFoundError).toBeTruthy();
     }

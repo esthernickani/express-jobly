@@ -12,6 +12,7 @@ const {
   commonAfterAll,
   u1Token,
   adminToken,
+  testJobIds
 } = require("./_testCommon");
 
 beforeAll(commonBeforeAll);
@@ -19,42 +20,44 @@ beforeEach(commonBeforeEach);
 afterEach(commonAfterEach);
 afterAll(commonAfterAll);
 
-/************************************** POST /companies */
+/************************************** POST /jobs */
 
-describe("POST /companies", function () {
-  const newCompany = {
-    handle: "new",
-    name: "New",
-    logoUrl: "http://new.img",
-    description: "DescNew",
-    numEmployees: 10,
+describe("POST /jobs", function () {
+  const newJob = {
+    title: "New job",
+    salary: 25000,
+    equity: "0",
+    company_handle: "c1",
   };
 
   test("ok for admin", async function () {
     const resp = await request(app)
-        .post("/companies")
-        .send(newCompany)
+        .post("/jobs")
+        .send(newJob)
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.statusCode).toEqual(201);
     expect(resp.body).toEqual({
-      company: newCompany,
+      job: {
+        id: expect.any(Number),
+        ...newJob
+      }
     });
   });
 
   test("unauth for users", async function () {
     const resp = await request(app)
-        .post("/companies")
-        .send(newCompany)
+        .post("/jobs")
+        .send(newJob)
         .set("authorization", `Bearer ${u1Token}`);
     expect(resp.statusCode).toEqual(401);
   });
 
   test("bad request with missing data", async function () {
     const resp = await request(app)
-        .post("/companies")
+        .post("/jobs")
         .send({
-          handle: "new",
-          numEmployees: 10,
+          salary: 50000,
+          equity: "0",
         })
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.statusCode).toEqual(400);
@@ -64,42 +67,44 @@ describe("POST /companies", function () {
     const resp = await request(app)
         .post("/companies")
         .send({
-          ...newCompany,
-          logoUrl: "not-a-url",
+            title: "New job",
+            salary: "not a salary",
+            equity: "0",
+            company_handle: "c1",
         })
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.statusCode).toEqual(400);
   });
 });
 
-/************************************** GET /companies */
+/************************************** GET /jobs */
 
-describe("GET /companies", function () {
+describe("GET /jobs", function () {
   test("ok for anon", async function () {
-    const resp = await request(app).get("/companies");
+    const resp = await request(app).get("/jobs");
     expect(resp.body).toEqual({
-      companies:
+      jobs:
           [
             {
-              handle: "c1",
-              name: "C1",
-              description: "Desc1",
-              numEmployees: 1,
-              logoUrl: "http://c1.img",
+                id: expect.any(Number),
+                title: 'testjob1', 
+                salary: 100000, 
+                equity: "0.1", 
+                company_handle: "c1"
             },
             {
-              handle: "c2",
-              name: "C2",
-              description: "Desc2",
-              numEmployees: 2,
-              logoUrl: "http://c2.img",
+                id: expect.any(Number),
+                title: 'testjob2', 
+                salary: 5000, 
+                equity: "0", 
+                company_handle: "c1"
             },
             {
-              handle: "c3",
-              name: "C3",
-              description: "Desc3",
-              numEmployees: 3,
-              logoUrl: "http://c3.img",
+                id: expect.any(Number),
+                title: 'testjob3', 
+                salary: 356000, 
+                equity: "0.5", 
+                company_handle: "c1"  
             },
           ],
     });
@@ -109,98 +114,71 @@ describe("GET /companies", function () {
     // there's no normal failure event which will cause this route to fail ---
     // thus making it hard to test that the error-handler works with it. This
     // should cause an error, all right :)
-    await db.query("DROP TABLE companies CASCADE");
+    await db.query("DROP TABLE jobs CASCADE");
     const resp = await request(app)
-        .get("/companies")
+        .get("/jobs")
         .set("authorization", `Bearer ${u1Token}`);
     expect(resp.statusCode).toEqual(500);
   });
 });
 
-/************************************** GET /companies/:handle */
+/************************************** GET /jobs/:id */
 
-describe("GET /companies/:handle", function () {
+describe("GET /jobs/:id", function () {
   test("works for anon", async function () {
-    const resp = await request(app).get(`/companies/c1`);
+    const resp = await request(app).get(`/jobs/${testJobIds[0]}`);
     expect(resp.body).toEqual({
-      company: {
-        handle: "c1",
-        name: "C1",
-        description: "Desc1",
-        numEmployees: 1,
-        logoUrl: "http://c1.img",
-        jobs: [
-          {
-            id: expect.any(Number),
-            title: 'testjob1', 
-            salary: 100000, 
-            equity: "0.1", 
-            company_handle: "c1"
-        },
-        {
-            id: expect.any(Number),
-            title: 'testjob2', 
-            salary: 5000, 
-            equity: "0", 
-            company_handle: "c1"
-        },
-        {
-            id: expect.any(Number),
-            title: 'testjob3', 
-            salary: 356000, 
-            equity: "0.5", 
-            company_handle: "c1"  
-        }]
+      job: {
+        id: expect.any(Number),
+        title: expect.any(String), 
+        salary: expect.any(Number), 
+        equity: expect.any(String), 
+        company_handle: "c1"
       },
     });
   });
 
-  test("works for anon: company w/o jobs", async function () {
-    const resp = await request(app).get(`/companies/c2`);
-    expect(resp.body).toEqual({
-      company: {
-        handle: "c2",
-        name: "C2",
-        description: "Desc2",
-        numEmployees: 2,
-        logoUrl: "http://c2.img",
-        jobs: "No jobs"
-      },
-    });
-  });
-
-  test("not found for no such company", async function () {
-    const resp = await request(app).get(`/companies/nope`);
+  test("not found for no such job", async function () {
+    const resp = await request(app).get(`/jobs/0`);
     expect(resp.statusCode).toEqual(404);
   });
 });
 
-/************************************** PATCH /companies/:handle */
+/************************************** PATCH /jobs/:id */
 
-describe("PATCH /companies/:handle", function () {
-  test("works for users", async function () {
+describe("PATCH /jobs/:id", function () {
+  test("works for admin", async function () {
     const resp = await request(app)
-        .patch(`/companies/c1`)
+        .patch(`/jobs/${testJobIds[0]}`)
         .send({
-          name: "C1-new",
+          title: "job-updated",
         })
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.body).toEqual({
-      company: {
-        handle: "c1",
-        name: "C1-new",
-        description: "Desc1",
-        numEmployees: 1,
-        logoUrl: "http://c1.img",
+      job: {
+        id: expect.any(Number),
+        title: "job-updated", 
+        salary: expect.any(Number), 
+        equity: expect.any(String), 
+        company_handle: "c1"
       },
     });
   });
 
+  test("doesnt work for anon", async function () {
+    const resp = await request(app)
+        .patch(`/jobs/${testJobIds[0]}`)
+        .send({
+          name: "job1-new",
+        });
+    expect(resp.statusCode).toEqual(401);
+  });
+
   test("unauth for anon", async function () {
     const resp = await request(app)
-        .patch(`/companies/c1`)
+        .patch(`/jobs/${testJobIds[0]}`)
         .send({
-          name: "C1-new",
+          name: "job1-new",
         });
     expect(resp.statusCode).toEqual(401);
   });
@@ -238,7 +216,7 @@ describe("PATCH /companies/:handle", function () {
 
 /************************************** DELETE /companies/:handle */
 
-describe("DELETE /companies/:handle", function () {
+/*describe("DELETE /companies/:handle", function () {
   test("works for users", async function () {
     const resp = await request(app)
         .delete(`/companies/c1`)
@@ -258,4 +236,4 @@ describe("DELETE /companies/:handle", function () {
         .set("authorization", `Bearer ${adminToken}`);
     expect(resp.statusCode).toEqual(404);
   });
-});
+});*/

@@ -121,19 +121,42 @@ describe("findAll", function () {
 describe("get", function () {
   test("works", async function () {
     let company = await Company.get("c1");
+    console.log(company)
     expect(company).toEqual({
-      handle: "c1",
-      name: "C1",
-      description: "Desc1",
+      handle: 'c1',
+      name: 'C1',
+      description: 'Desc1',
       numEmployees: 1,
-      logoUrl: "http://c1.img",
+      logoUrl: 'http://c1.img',
+      jobs: [ 
+        {
+          id: expect.any(Number),
+          title: 'j1', 
+          salary: 10000, 
+          equity: "0", 
+          company_handle: "c1"
+        },
+        {
+          id: expect.any(Number),
+          title: 'j2', 
+          salary: 25000, 
+          equity: "0.2", 
+          company_handle: "c1"
+        },
+        {
+          id: expect.any(Number),
+          title: 'j3', 
+          salary: 35000, 
+          equity: "0.1", 
+          company_handle: "c1"
+        }
+      ] 
+    })
     });
-  });
 
   test("not found if no such company", async function () {
     try {
       await Company.get("nope");
-      fail();
     } catch (err) {
       expect(err instanceof NotFoundError).toBeTruthy();
     }

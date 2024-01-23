@@ -5,7 +5,7 @@
 const jsonschema = require("jsonschema");
 
 const express = require("express");
-const { ensureLoggedIn } = require("../middleware/auth");
+const { ensureLoggedIn, ensureCorrectUserOrAdmin, ensureAdmin } = require("../middleware/auth");
 const { BadRequestError } = require("../expressError");
 const User = require("../models/user");
 const { createToken } = require("../helpers/tokens");
@@ -36,7 +36,7 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
     }
 
     const user = await User.register(req.body);
-    const token = (user);
+    const token = createToken(user);
     console.log(token)
     return res.status(201).json({ user, token });
   } catch (err) {
@@ -52,7 +52,7 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
  * Authorization required: login
  **/
 
-router.get("/", ensureLoggedIn, async function (req, res, next) {
+router.get("/", ensureAdmin, async function (req, res, next) {
   try {
     const users = await User.findAll();
     return res.json({ users });
@@ -69,7 +69,7 @@ router.get("/", ensureLoggedIn, async function (req, res, next) {
  * Authorization required: login
  **/
 
-router.get("/:username", ensureLoggedIn, async function (req, res, next) {
+router.get("/:username", ensureCorrectUserOrAdmin, async function (req, res, next) {
   try {
     const user = await User.get(req.params.username);
     return res.json({ user });
@@ -89,7 +89,7 @@ router.get("/:username", ensureLoggedIn, async function (req, res, next) {
  * Authorization required: login
  **/
 
-router.patch("/:username", ensureLoggedIn, async function (req, res, next) {
+router.patch("/:username", ensureLoggedIn, ensureCorrectUserOrAdmin, async function (req, res, next) {
   try {
     const validator = jsonschema.validate(req.body, userUpdateSchema);
     if (!validator.valid) {
@@ -110,7 +110,7 @@ router.patch("/:username", ensureLoggedIn, async function (req, res, next) {
  * Authorization required: login
  **/
 
-router.delete("/:username", ensureLoggedIn, async function (req, res, next) {
+router.delete("/:username", ensureCorrectUserOrAdmin, async function (req, res, next) {
   try {
     await User.remove(req.params.username);
     return res.json({ deleted: req.params.username });
@@ -119,5 +119,14 @@ router.delete("/:username", ensureLoggedIn, async function (req, res, next) {
   }
 });
 
+/**APPLY FOR JOB, authorization required, login or admin */
+router.post('/:username/jobs/:id', ensureCorrectUserOrAdmin, async function(req, res, next) {
+  try {
+    await User.applyForJob(req.params.username, req.params.id)
+    return res.json(`{ applied: ${req.params.id}}`)
+  } catch (err) {
+    return next(err)
+  }
+})
 
 module.exports = router;

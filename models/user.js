@@ -2,6 +2,7 @@
 
 const db = require("../db");
 const bcrypt = require("bcrypt");
+const Job = require("./job.js")
 const { sqlForPartialUpdate } = require("../helpers/sql");
 const {
   NotFoundError,
@@ -112,6 +113,7 @@ class User {
            ORDER BY username`,
     );
 
+
     return result.rows;
   }
 
@@ -130,7 +132,7 @@ class User {
                   last_name AS "lastName",
                   email,
                   is_admin AS "isAdmin"
-           FROM users
+           FROM users 
            WHERE username = $1`,
         [username],
     );
@@ -138,6 +140,22 @@ class User {
     const user = userRes.rows[0];
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
+
+    const jobsForUser = await db.query(
+      `SELECT job_id FROM applications
+      WHERE username = $1`, 
+      [user.username]
+    )
+
+    console.log(user)
+    
+    const userJobIds = jobsForUser.rows.map(individualJob => {
+      return individualJob.job_id
+    })
+
+    user.jobs = userJobIds 
+    if (userJobIds.length === 0) user.jobs = 'No jobs applied for by user'
+    console.log(user)
 
     return user;
   }
@@ -203,6 +221,37 @@ class User {
     const user = result.rows[0];
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
+  }
+
+
+  /*allow a user to apply for a job
+  if job and/or user doesnt exist, throw error
+  check if job exists and if user exist and then apply*/
+  static async applyForJob(username, jobId) {
+    const checkForJob  = await db.query(
+      `SELECT * FROM jobs
+      WHERE id = $1`,
+      [jobId])
+
+    if (!checkForJob.rows[0]) throw new NotFoundError(`No job: ${jobId}`)
+
+    const checkForUser = await db.query(
+      `SELECT * FROM users
+      WHERE username = $1`,
+      [username])
+
+    if (!checkForUser.rows[0]) throw new NotFoundError(`No user: ${username}`)
+
+    let application = await db.query(
+      `INSERT into applications
+      (username, job_id)
+      VALUES($1, $2)
+      RETURNING username, job_id`,
+    [username, jobId]
+    )
+
+    const applicationSuccess = application.rows[0]
+    return applicationSuccess
   }
 }
 

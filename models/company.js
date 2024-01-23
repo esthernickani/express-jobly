@@ -51,7 +51,6 @@ class Company {
    * */
 
   static async findAll(filter) {
-    console.log(filter)
     let sqlCondition = ''
     if (Object.keys(filter).length !== 0) {
       sqlCondition = createSqlQueryForCompany(filter)
@@ -67,8 +66,11 @@ class Company {
            ${sqlCondition}
            ORDER BY name`);
     
-    const errorMessage = getErrorMessage(filter)
-    if (companiesRes.rows.length === 0) throw new NotFoundError(`No company with ${errorMessage}`);
+   
+    if (companiesRes.rows.length === 0) {
+      const errorMessage = getErrorMessage(filter)
+      throw new NotFoundError(`No company with ${errorMessage}`);
+    }
     return companiesRes.rows;
 
     //
@@ -93,9 +95,22 @@ class Company {
            WHERE handle = $1`,
         [handle]);
 
-    const company = companyRes.rows[0];
+    const jobsForCompanyRes = await db.query(
+          `SELECT * FROM jobs 
+          WHERE company_handle = $1`,
+          [handle]);
 
-    if (!company) throw new NotFoundError(`No company: ${handle}`);
+    let companyJobs;
+    if (jobsForCompanyRes.rows.length === 0) {
+      companyJobs = 'No jobs'
+    } else {
+      companyJobs = jobsForCompanyRes.rows
+    }
+
+    const company = {...companyRes.rows[0],
+                    "jobs": companyJobs};
+
+    if (!companyRes.rows[0]) throw new NotFoundError(`No company: ${handle}`);
 
     return company;
   }
